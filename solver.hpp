@@ -38,7 +38,7 @@ static std::vector<word_id> select_query_words(const std::vector<word_id> &words
     std::sort(select.begin(), select.end(), [](const std::pair<word_id, double> &l, const std::pair<word_id, double> &r) {
         return l.second > r.second;
     });
-    size_t useful = std::min(select.size(), words.size() * 2);
+    size_t useful = std::min(select.size(), std::min(words.size() * 3 / 2, query_words.size() / 15));
     std::vector<word_id> ret;
     ret.reserve(useful);
     for (size_t i = 0; i < useful; ++i) ret.push_back(select[i].first);
