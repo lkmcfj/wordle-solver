@@ -72,7 +72,7 @@ private:
         size_t cur = node_table[node];
         if (node->child) {
             nodes[cur].terminal = false;
-            nodes[cur].query_word = node->best_query;
+            nodes[cur].query_word = query_words[node->best_query];
             nodes[cur].children.reserve(node->child->children.size());
             for (auto &i : node->child->children) {
                 nodes[cur].children.emplace_back(i.first, node_table[i.second.get()]);

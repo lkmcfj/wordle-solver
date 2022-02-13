@@ -14,22 +14,11 @@ LEN is the length of all words.
 */
 const int LEN = 5;
 std::vector<std::string> candidate_words, query_words;
+using word_id = unsigned int;
 using response_t = unsigned int;
 const response_t RESPONSE_RANGE = 243; // 3^5
-
-static void load_vocabulary(const std::string &candidate_vocab_filename, const std::string &query_vocab_filename) {
-    std::ifstream f1{candidate_vocab_filename};
-    std::string word;
-    while (f1 >> word) {
-        assert(word.length() == LEN);
-        candidate_words.push_back(word);
-    }
-    std::ifstream f2{query_vocab_filename};
-    while (f2 >> word) {
-        assert(word.length() == LEN);
-        query_words.push_back(word);
-    }
-}
+std::vector<std::vector<response_t>> response_table; // first index: query word, second index: candidate word
+std::vector<word_id> candidate_query_id; // candidate word id -> query word id
 
 static response_t encode_query_response(response_t result[]) {
     response_t ret = 0;
@@ -56,18 +45,50 @@ static response_t get_query_response(const std::string &query, const std::string
     return encode_query_response(response);
 }
 
+static void load_vocabulary(const std::string &candidate_vocab_filename, const std::string &query_vocab_filename) {
+    std::ifstream f1{candidate_vocab_filename};
+    std::string word;
+    while (f1 >> word) {
+        assert(word.length() == LEN);
+        for (char c : word) {
+            assert(c >= 'a' && c <= 'z');
+        }
+        candidate_words.push_back(word);
+    }
+    std::ifstream f2{query_vocab_filename};
+    while (f2 >> word) {
+        assert(word.length() == LEN);
+        for (char c : word) {
+            assert(c >= 'a' && c <= 'z');
+        }
+        query_words.push_back(word);
+    }
+    size_t qn = query_words.size(), cn = candidate_words.size();
+    response_table.resize(qn);
+    candidate_query_id.resize(cn);
+    for (word_id q = 0; q < qn; ++q) {
+        response_table[q].reserve(cn);
+        for (word_id c = 0; c < cn; ++c) {
+            if (query_words[q] == candidate_words[c]) {
+                candidate_query_id[c] = q;
+            }
+            response_table[q].push_back(get_query_response(query_words[q], candidate_words[c]));
+        }
+    }
+}
+
 struct ResponseNode;
 struct GuessNode {
     int depth;
     std::unique_ptr<ResponseNode> child;
-    std::string best_query;
+    word_id best_query;
 
     GuessNode(int d): depth(d){}
 };
 struct ResponseNode {
     int depth;
-    std::string query_word;
+    word_id query_word;
     std::vector<std::pair<response_t, std::unique_ptr<GuessNode>>> children;
 
-    ResponseNode(int d, std::string q): depth(d), query_word(std::move(q)) {}
+    ResponseNode(int d, word_id q): depth(d), query_word(q) {}
 };

@@ -4,9 +4,9 @@
 #include <algorithm>
 #include "common.hpp"
 
-static double calc_entropy(const std::vector<std::string> &words, const std::string &query, double hit_bonus) {
+static double calc_entropy(const std::vector<word_id> &words, word_id query, double hit_bonus) {
     int cnt[RESPONSE_RANGE] = {0};
-    for (auto &s : words) ++cnt[get_query_response(query, s)];
+    for (auto &i : words) ++cnt[response_table[query][i]];
     int non_zero = 0;
     double ret = 0;
     for (response_t i = 0; i < RESPONSE_RANGE; ++i) {
@@ -21,32 +21,34 @@ static double calc_entropy(const std::vector<std::string> &words, const std::str
     return ret;
 }
 
-static std::vector<std::string> select_query_words(const std::vector<std::string> &words) {
+static std::vector<word_id> select_query_words(const std::vector<word_id> &words) {
     if (words.size() <= 2) {
-        return words;
+        std::vector<word_id> ret;
+        ret.push_back(candidate_query_id[words[0]]);
+        return ret;
     }
-    std::vector<std::pair<std::string, double>> select;
+    std::vector<std::pair<word_id, double>> select;
     select.reserve(query_words.size());
-    for (auto &s : query_words) {
-        double entropy = calc_entropy(words, s, 1.0 / words.size());
+    for (word_id i = 0; i < query_words.size(); ++i) {
+        double entropy = calc_entropy(words, i, 1.0 / words.size());
         if (entropy > 0) {
-            select.emplace_back(s, entropy);
+            select.emplace_back(i, entropy);
         }
     }
-    std::sort(select.begin(), select.end(), [](const std::pair<std::string, double> &l, const std::pair<std::string, double> &r) {
+    std::sort(select.begin(), select.end(), [](const std::pair<word_id, double> &l, const std::pair<word_id, double> &r) {
         return l.second > r.second;
     });
     size_t useful = std::min(select.size(), words.size() * 2);
-    std::vector<std::string> ret;
+    std::vector<word_id> ret;
     ret.reserve(useful);
-    for (size_t i = 0; i < useful; ++i) ret.push_back(std::move(select[i].first));
+    for (size_t i = 0; i < useful; ++i) ret.push_back(select[i].first);
     return ret;
 }
 
 namespace Minimax {
     using value_t = int;
-    static value_t search(ResponseNode *node, value_t parent_best, const std::vector<std::string> &words);
-    static value_t search(GuessNode *node, const std::vector<std::string> &words) {
+    static value_t search(ResponseNode *node, value_t parent_best, const std::vector<word_id> &words);
+    static value_t search(GuessNode *node, const std::vector<word_id> &words) {
         const value_t INF = 1000000000; // 1e9
         assert(!node->child);
         value_t min_child_value = INF;
@@ -61,15 +63,15 @@ namespace Minimax {
             }
             if (node->depth == 0) {
                 ++process;
-                std::cerr << "root children: " << process << ", word: " << s << ", value: " << cur << '\n';
+                std::cerr << "root children: " << process << ", word: " << query_words[s] << ", value: " << cur << '\n';
             }
         }
         return min_child_value;
     }
-    static value_t search(ResponseNode *node, value_t parent_best, const std::vector<std::string> &words) {
-        std::vector<std::string> possible_responses[RESPONSE_RANGE];
-        for (const auto &s : words) {
-            possible_responses[get_query_response(node->query_word, s)].push_back(s);
+    static value_t search(ResponseNode *node, value_t parent_best, const std::vector<word_id> &words) {
+        std::vector<word_id> possible_responses[RESPONSE_RANGE];
+        for (word_id i : words) {
+            possible_responses[response_table[node->query_word][i]].push_back(i);
         }
         value_t max_child_value = 0;
         if (possible_responses[0].size()) {
@@ -93,8 +95,8 @@ namespace Minimax {
 
 namespace AverageOptimal {
     using value_t = long long;
-    static value_t search(ResponseNode *node, value_t parent_best, const std::vector<std::string> &words);
-    static value_t search(GuessNode *node, const std::vector<std::string> &words) {
+    static value_t search(ResponseNode *node, value_t parent_best, const std::vector<word_id> &words);
+    static value_t search(GuessNode *node, const std::vector<word_id> &words) {
         const value_t INF = 1000000000000000000LL; // 1e18
         assert(!node->child);
         value_t min_child_value = INF;
@@ -109,15 +111,15 @@ namespace AverageOptimal {
             }
             if (node->depth == 0) {
                 ++process;
-                std::cerr << "root children: " << process << ", word: " << s << ", value: " << cur << '\n';
+                std::cerr << "root children: " << process << ", word: " << query_words[s] << ", value: " << cur << '\n';
             }
         }
         return min_child_value;
     }
-    static value_t search(ResponseNode *node, value_t parent_best, const std::vector<std::string> &words) {
-        std::vector<std::string> possible_responses[RESPONSE_RANGE];
-        for (const auto &s : words) {
-            possible_responses[get_query_response(node->query_word, s)].push_back(s);
+    static value_t search(ResponseNode *node, value_t parent_best, const std::vector<word_id> &words) {
+        std::vector<word_id> possible_responses[RESPONSE_RANGE];
+        for (word_id i : words) {
+            possible_responses[response_table[node->query_word][i]].push_back(i);
         }
         value_t sum_child_value = 0;
         if (possible_responses[0].size()) {
