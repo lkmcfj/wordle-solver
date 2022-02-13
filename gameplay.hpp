@@ -8,14 +8,27 @@ public:
     virtual response_t query(const std::string &query_word) = 0;
 };
 
+class FixedWordGameHost : public GameHost {
+    std::string answer;
+public:
+    FixedWordGameHost(std::string a): answer(std::move(a)) {
+        assert(answer.length() == LEN);
+    }
+    response_t query(const std::string &query_word) override {
+        return get_query_response(query_word, answer);
+    }
+};
+
 class BotPlayer {
     StrategyTree *strategy;
 public:
     BotPlayer(StrategyTree *s): strategy(s) {}
-    void play(GameHost *host) {
+    int play(GameHost *host) {
         size_t state = 0;
         assert(!strategy->nodes[0].terminal);
+        int ret = 0;
         while (true) {
+            ++ret;
             response_t r = host->query(strategy->nodes[state].query_word);
             bool found = false;
             for (auto &i : strategy->nodes[state].children) {
@@ -27,11 +40,10 @@ public:
             }
             if (!found) {
                 std::cout << "Invalid response: the answer is out of the vocabulary used to build this strategy.\n";
-                return;
+                return -1;
             }
             if (strategy->nodes[state].terminal) {
-                std::cout << "Success!\n";
-                return;
+                return ret;
             }
         }
     }
