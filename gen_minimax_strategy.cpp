@@ -11,6 +11,7 @@ int main(int argc, char *argv[]) {
     for (word_id i = 0; i < candidate_words.size(); ++i) {
         universal_set.push_back(i);
     }
+    std::cout << "Start searching\n" << std::flush;
     auto value = Minimax::search(root.get(), universal_set);
     std::cout << "value of the game: " << value << '\n';
     StrategyTree strategy{root.get()};
