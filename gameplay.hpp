@@ -19,6 +19,31 @@ public:
     }
 };
 
+class ConsoleRespond : public GameHost {
+    static bool legal(const std::string &s) {
+        if (s.length() != LEN) return false;
+        for (char c : s) {
+            if (c != '0' && c != '1' && c != '2') {
+                return false;
+            }
+        }
+        return true;
+    }
+public:
+    response_t query(const std::string &query_word) override {
+        std::cout << "guess: " << query_word << "\nresponse: ";
+        std::string response;
+        std::cin >> response;
+        while (!legal(response)) {
+            std::cout << "Please input 5 digits consisting of 0, 1 and 2.\n0 stands for green, 1 stands for yellow, and 2 stands for grey.\nresponse: ";
+            std::cin >> response;
+        }
+        response_t buf[LEN];
+        for (int i = 0; i < LEN; ++i) buf[i] = response[i] - '0';
+        return encode_query_response(buf);
+    }
+};
+
 class BotPlayer {
     StrategyTree *strategy;
 public:
