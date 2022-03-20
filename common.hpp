@@ -12,7 +12,8 @@ candidate_words contains the words that could be the final answer.
 query_words contains the words that could be used for query.
 LEN is the length of all words.
 */
-const int LEN = 5;
+const int LEN = 5, K = 26;
+const char START = 'a';
 std::vector<std::string> candidate_words, query_words;
 using word_id = unsigned int;
 using response_t = unsigned int;
@@ -29,16 +30,21 @@ static response_t encode_query_response(response_t result[]) {
 }
 static response_t get_query_response(const std::string &query, const std::string &answer) {
     response_t response[LEN];
+    int cnt[K] = {0};
     for (int i = 0; i < LEN; ++i) {
         if (query[i] == answer[i]) {
             response[i] = 0;
         } else {
-            response[i] = 2;
-            for (int j = 0; j < LEN; ++j) {
-                if (query[i] == answer[j] && query[j] != answer[j]) {
-                    response[i] = 1;
-                    break;
-                }
+            ++cnt[answer[i] - START];
+        }
+    }
+    for (int i = 0; i < LEN; ++i) {
+        if (query[i] != answer[i]) {
+            if (cnt[query[i] - START] > 0) {
+                --cnt[query[i] - START];
+                response[i] = 1;
+            } else {
+                response[i] = 2;
             }
         }
     }
@@ -51,7 +57,7 @@ static void load_vocabulary(const std::string &candidate_vocab_filename, const s
     while (f1 >> word) {
         assert(word.length() == LEN);
         for (char c : word) {
-            assert(c >= 'a' && c <= 'z');
+            assert(c >= START && c < START + K);
         }
         candidate_words.push_back(word);
     }
@@ -59,7 +65,7 @@ static void load_vocabulary(const std::string &candidate_vocab_filename, const s
     while (f2 >> word) {
         assert(word.length() == LEN);
         for (char c : word) {
-            assert(c >= 'a' && c <= 'z');
+            assert(c >= START && c < START + K);
         }
         query_words.push_back(word);
     }
